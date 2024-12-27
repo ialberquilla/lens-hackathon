@@ -1,0 +1,21 @@
+{
+  "name": "storage",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "ts-node src/index.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@lens-protocol/storage-node-client": "^0.0.0-next-20241217195719",
+    "@types/node": "^22.10.2",
+    "axios": "^1.7.9",
+    "form-data": "^4.0.1",
+    "ts-node": "^10.x.x",
+    "typescript": "^5.x.x"
+  }
+}
