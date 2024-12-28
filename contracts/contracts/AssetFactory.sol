@@ -5,6 +5,7 @@ import "./Asset.sol";
 
 contract AssetFactory {
     event AssetCreated(
+        address indexed owner,
         address indexed assetAddress,
         string name,
         string symbol,
@@ -29,6 +30,7 @@ contract AssetFactory {
         );
 
         emit AssetCreated(
+            msg.sender,
             address(asset),
             name,
             symbol,
