@@ -13,8 +13,8 @@ interface ProductDetailsProps {
 const ProductDetails: React.FC<ProductDetailsProps> = ({ imageUrl, price }) => {
   const aiAgents = [
     {
-      name: 'Style Analyzer',
-      description: 'Analyzing artistic style and composition elements',
+      name: 'Cartoon Collector Agent',
+      description: 'Analyzing similarity to existing cartoon images',
       icon: Brain,
       status: 'Processing...',
       color: 'text-purple-500',
@@ -27,10 +27,10 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ imageUrl, price }) => {
       ]
     },
     {
-      name: 'Market Trends',
-      description: 'Evaluating market potential and target audience',
-      icon: Star,
-      status: 'Complete',
+      name: 'Nature Collector Agent',
+      description: 'Analyzing similarity to existing nature images',
+      icon: Brain,
+      status: 'Processing...',
       color: 'text-blue-500',
       details: [
         "Target demographic: 18-35 age group",
@@ -40,34 +40,6 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ imageUrl, price }) => {
         "Recommended pricing tier: Premium segment"
       ]
     },
-    {
-      name: 'Quality Check',
-      description: 'Verifying image quality and resolution',
-      icon: Star,
-      status: 'Complete',
-      color: 'text-yellow-500',
-      details: [
-        "Resolution: 2400x3200px - Suitable for large prints",
-        "Color space: sRGB - Optimal for digital products",
-        "No artifacts or compression issues detected",
-        "Clean edges and sharp details present",
-        "Image meets all quality requirements for production"
-      ]
-    },
-    {
-      name: 'Product Recommendations',
-      description: 'Suggesting optimal product types',
-      icon: Star,
-      status: 'Processing...',
-      color: 'text-green-500',
-      details: [
-        "High potential products:",
-        "- Graphic t-shirts and hoodies",
-        "- Phone cases and tech accessories",
-        "- Wall art and posters",
-        "- Stickers and small merchandise"
-      ]
-    }
   ];
 
   const [expandedAgents, setExpandedAgents] = React.useState(new Set<string>());
