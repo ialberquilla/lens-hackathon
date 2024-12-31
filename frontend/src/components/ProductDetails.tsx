@@ -8,9 +8,53 @@ import Image from 'next/image';
 interface ProductDetailsProps {
   imageUrl: string;
   price: string;
+  analysis: string;
 }
 
-const ProductDetails: React.FC<ProductDetailsProps> = ({ imageUrl, price }) => {
+interface AnalysisData {
+  category: string;
+  description: string;
+  style: string;
+  useCases: string;
+}
+
+const ProductDetails: React.FC<ProductDetailsProps> = ({ imageUrl, price, analysis }) => {
+  const [analysisData, setAnalysisData] = React.useState<AnalysisData>({
+    category: '',
+    description: '',
+    style: '',
+    useCases: ''
+  });
+
+  React.useEffect(() => {
+    if (analysis) {
+      const sections = analysis.split('\n\n');
+      const data: Partial<AnalysisData> = {};
+      
+      sections.forEach(section => {
+        const [title, content] = section.split(': ');
+        if (content) {
+          switch (title.toLowerCase()) {
+            case 'category':
+              data.category = content.trim();
+              break;
+            case 'description':
+              data.description = content.trim();
+              break;
+            case 'style':
+              data.style = content.trim();
+              break;
+            case 'use cases':
+              data.useCases = content.trim();
+              break;
+          }
+        }
+      });
+
+      setAnalysisData(data as AnalysisData);
+    }
+  }, [analysis]);
+
   const aiAgents = [
     {
       name: 'Cartoon Collector Agent',
@@ -141,6 +185,39 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ imageUrl, price }) => {
                     </div>
                   </div>
                 ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Gemini Analysis Section */}
+        <div className="lg:col-span-3">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-2xl font-bold">AI Image Analysis</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Category</h3>
+                  <p className="text-gray-700 bg-gray-50 p-3 rounded-lg">{analysisData.category}</p>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Style</h3>
+                  <p className="text-gray-700 bg-gray-50 p-3 rounded-lg">{analysisData.style}</p>
+                </div>
+                <div className="md:col-span-2">
+                  <h3 className="text-lg font-semibold mb-2">Description</h3>
+                  <p className="text-gray-700 bg-gray-50 p-3 rounded-lg">{analysisData.description}</p>
+                </div>
+                <div className="md:col-span-2">
+                  <h3 className="text-lg font-semibold mb-2">Potential Use Cases</h3>
+                  <ul className="list-disc list-inside text-gray-700 bg-gray-50 p-3 rounded-lg">
+                    {analysisData.useCases.split(',').map((useCase, index) => (
+                      <li key={index} className="mb-1">{useCase.trim()}</li>
+                    ))}
+                  </ul>
+                </div>
               </div>
             </CardContent>
           </Card>

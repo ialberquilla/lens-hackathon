@@ -17,6 +17,8 @@ const ImageUpload = () => {
   const [error, setError] = useState('');
   const [price, setPrice] = useState('');
   const [showAnalysis, setShowAnalysis] = useState(false);
+  const [analysis, setAnalysis] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -27,27 +29,36 @@ const ImageUpload = () => {
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = event.target.files?.[0];
-    if (selectedFile) {
-      if (!selectedFile.type.startsWith('image/')) {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
         setError('Please upload an image file');
         return;
       }
-      setPreview(URL.createObjectURL(selectedFile));
-      handleUpload();
+      setSelectedFile(file);
+      setPreview(URL.createObjectURL(file));
+      handleUpload(file);
     }
   };
 
-  const handleUpload = async () => {
+  const handleUpload = async (file: File) => {
     try {
       setStatus('uploading');
-      // Simulate upload delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
       
-      setStatus('generating');
-      // Simulate embedding generation delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
+      const formData = new FormData();
+      formData.append('image', file);
+
+      const response = await fetch('/api/gemini', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to process image');
+      }
+
+      const data = await response.json();
+      setAnalysis(data.analysis);
       setStatus('ready');
     } catch (error) {
       setError('An error occurred while processing your image');
@@ -75,7 +86,7 @@ const ImageUpload = () => {
   };
 
   if (showAnalysis && preview) {
-    return <ProductDetails imageUrl={preview} price={price} />;
+    return <ProductDetails imageUrl={preview} price={price} analysis={analysis} />;
   }
 
   return (
@@ -130,6 +141,12 @@ const ImageUpload = () => {
 
               {status === 'ready' && (
                 <div className="space-y-4">
+                  {analysis && (
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <h3 className="font-medium mb-2">AI Analysis</h3>
+                      <p className="text-sm text-gray-600">{analysis}</p>
+                    </div>
+                  )}
                   <div className="bg-gray-50 p-4 rounded-lg space-y-3">
                     <Label htmlFor="price" className="text-sm font-medium">Set Your Price</Label>
                     <div className="relative">
