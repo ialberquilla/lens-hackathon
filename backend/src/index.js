@@ -44,10 +44,17 @@ app.post('/api/embeddings', async (req, res) => {
     }
 
     const result = await response.json();
+    console.log('Ollama API Response:', result);
+
+    // The embedding should be in result.embedding
+    if (!result.embedding) {
+      throw new Error('No embedding in response');
+    }
+
     res.json({ embedding: result.embedding });
   } catch (error) {
     console.error('Error generating embeddings:', error);
-    res.status(500).json({ error: 'Failed to generate embeddings' });
+    res.status(500).json({ error: 'Failed to generate embeddings', details: error.message });
   }
 });
 
