@@ -1,4 +1,4 @@
-const EMBEDDINGS_API = process.env.NEXT_PUBLIC_EMBEDDINGS_API || 'http://localhost:3001';
+const EMBEDDINGS_API = process.env.NEXT_PUBLIC_EMBEDDINGS_API || 'http://localhost:3002';
 
 export async function generateEmbeddings(text: string): Promise<number[]> {
   try {
