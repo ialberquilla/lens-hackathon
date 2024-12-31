@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import ProductDetails from '@/components/ProductDetails';
 import Image from 'next/image';
 import { ConnectKitButton } from "connectkit";
+import { analyzeImage } from '@/lib/gemini';
 
 const ImageUpload = () => {
   const [preview, setPreview] = useState('');
@@ -43,21 +44,8 @@ const ImageUpload = () => {
     try {
       setStatus('uploading');
       
-      const formData = new FormData();
-      formData.append('image', file);
-
-      const response = await fetch('/api/gemini', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        console.log(response);
-        throw new Error('Failed to process image');
-      }
-
-      const data = await response.json();
-      setAnalysis(data.analysis);
+      const analysis = await analyzeImage(file);
+      setAnalysis(analysis);
       setStatus('ready');
     } catch (error) {
       setError('An error occurred while processing your image');
