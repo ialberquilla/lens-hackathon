@@ -1,12 +1,13 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
-const ollama = require('ollama');
+const fetch = require('node-fetch');
 
 dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 3001;
+const OLLAMA_HOST = process.env.OLLAMA_HOST || 'http://localhost:11434';
 
 // Middleware
 app.use(cors());
@@ -26,15 +27,34 @@ app.post('/api/embeddings', async (req, res) => {
       return res.status(400).json({ error: 'Text is required' });
     }
 
-    const response = await ollama.embeddings({
-      model: 'mxbai-embed-large',
-      prompt: text,
+    // Make direct HTTP request to Ollama API
+    const response = await fetch(`${OLLAMA_HOST}/api/embed`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'mxbai-embed-large',
+        input: text,
+      }),
     });
 
-    res.json({ embedding: response.embedding });
+    if (!response.ok) {
+      throw new Error(`Ollama API error: ${response.status}`);
+    }
+
+    const result = await response.json();
+    console.log('Ollama API Response:', result);
+
+    // The embedding should be in result.embedding
+    if (!result.embeddings) {
+      throw new Error('No embedding in response');
+    }
+
+    res.json({ embeddings: result.embeddings });
   } catch (error) {
     console.error('Error generating embeddings:', error);
-    res.status(500).json({ error: 'Failed to generate embeddings' });
+    res.status(500).json({ error: 'Failed to generate embeddings', details: error.message });
   }
 });
 
