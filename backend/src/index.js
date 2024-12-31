@@ -26,12 +26,18 @@ app.post('/api/embeddings', async (req, res) => {
       return res.status(400).json({ error: 'Text is required' });
     }
 
-    const response = await ollama.embeddings({
+    // Create Ollama client with the correct host
+    const client = new ollama.Client({
+      host: process.env.OLLAMA_HOST || 'http://localhost:11434',
+    });
+
+    // Generate embeddings using embed method
+    const response = await client.embed({
       model: 'mxbai-embed-large',
       prompt: text,
     });
 
-    res.json({ embedding: response.embedding });
+    res.json({ embedding: response });
   } catch (error) {
     console.error('Error generating embeddings:', error);
     res.status(500).json({ error: 'Failed to generate embeddings' });
