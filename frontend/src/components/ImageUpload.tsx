@@ -11,6 +11,7 @@ import ProductDetails from '@/components/ProductDetails';
 import Image from 'next/image';
 import { ConnectKitButton } from "connectkit";
 import { analyzeImage } from '@/lib/gemini';
+import { generateEmbeddings } from '@/lib/embeddings';
 
 const ImageUpload = () => {
   const [preview, setPreview] = useState('');
@@ -19,6 +20,7 @@ const ImageUpload = () => {
   const [price, setPrice] = useState('');
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [analysis, setAnalysis] = useState('');
+  const [embeddings, setEmbeddings] = useState<number[]>([]);
 
   const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -46,6 +48,13 @@ const ImageUpload = () => {
       
       const analysis = await analyzeImage(file);
       setAnalysis(analysis);
+      
+      setStatus('generating');
+      const embeddingVector = await generateEmbeddings(analysis);
+
+      console.log(embeddingVector);
+      setEmbeddings(embeddingVector);
+      
       setStatus('ready');
     } catch (error) {
       setError('An error occurred while processing your image');
