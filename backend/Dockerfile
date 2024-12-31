@@ -23,8 +23,12 @@ RUN npm install
 # Copy app source
 COPY . .
 
-# Create a startup script
-RUN echo '#!/bin/bash\nollama serve &\nsleep 5\nnode src/index.js' > start.sh \
+# Create a startup script that pulls the model and starts the services
+RUN echo '#!/bin/bash\n\
+ollama serve &\n\
+sleep 5\n\
+ollama pull mxbai-embed-large\n\
+node src/index.js' > start.sh \
     && chmod +x start.sh
 
 # Expose port

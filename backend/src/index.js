@@ -28,7 +28,7 @@ app.post('/api/embeddings', async (req, res) => {
     }
 
     // Make direct HTTP request to Ollama API
-    const response = await fetch(`${OLLAMA_HOST}/api/embeddings`, {
+    const response = await fetch(`${OLLAMA_HOST}/api/embed`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
