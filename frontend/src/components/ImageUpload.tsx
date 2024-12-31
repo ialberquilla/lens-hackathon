@@ -18,7 +18,6 @@ const ImageUpload = () => {
   const [price, setPrice] = useState('');
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [analysis, setAnalysis] = useState('');
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -35,7 +34,6 @@ const ImageUpload = () => {
         setError('Please upload an image file');
         return;
       }
-      setSelectedFile(file);
       setPreview(URL.createObjectURL(file));
       handleUpload(file);
     }

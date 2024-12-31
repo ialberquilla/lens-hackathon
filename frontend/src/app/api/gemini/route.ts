@@ -21,8 +21,6 @@ export async function POST(request: NextRequest) {
 
     // Create base64 data URL for the image
     const base64Image = buffer.toString('base64');
-    const mimeType = file.type;
-    const dataUrl = `data:${mimeType};base64,${base64Image}`;
 
     // Analyze the image with Gemini
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
