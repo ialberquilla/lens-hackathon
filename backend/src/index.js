@@ -35,7 +35,7 @@ app.post('/api/embeddings', async (req, res) => {
       },
       body: JSON.stringify({
         model: 'mxbai-embed-large',
-        prompt: text,
+        input: text,
       }),
     });
 
