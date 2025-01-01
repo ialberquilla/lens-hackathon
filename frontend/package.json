@@ -11,10 +11,12 @@
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
     "@lens-network/sdk": "^0.0.0-canary-20241203140504",
+    "@lens-protocol/storage-node-client": "^0.0.0-latest-20241209200445",
     "@radix-ui/react-label": "^2.1.1",
     "@radix-ui/react-slot": "^1.1.1",
     "@shadcn/ui": "^0.0.4",
     "@tanstack/react-query": "^5.62.11",
+    "axios": "^1.7.9",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "connectkit": "^1.8.2",

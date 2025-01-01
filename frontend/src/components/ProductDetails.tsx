@@ -2,13 +2,15 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Brain, Star, ChevronDown } from 'lucide-react';
+import { Brain, Star, ChevronDown, Link as LinkIcon, FileJson } from 'lucide-react';
 import Image from 'next/image';
 
 interface ProductDetailsProps {
   imageUrl: string;
   price: string;
   analysis: string;
+  folderUrl: string;
+  embeddingsUrl: string;
 }
 
 interface AnalysisData {
@@ -18,7 +20,13 @@ interface AnalysisData {
   useCases: string;
 }
 
-const ProductDetails: React.FC<ProductDetailsProps> = ({ imageUrl, price, analysis }) => {
+const ProductDetails: React.FC<ProductDetailsProps> = ({ 
+  imageUrl, 
+  price, 
+  analysis,
+  folderUrl,
+  embeddingsUrl 
+}) => {
   const [analysisData, setAnalysisData] = React.useState<AnalysisData>({
     category: '',
     description: '',
@@ -119,6 +127,36 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ imageUrl, price, analys
               <div className="flex items-center justify-between pt-4 border-t">
                 <span className="text-gray-600 font-medium">Price:</span>
                 <span className="text-xl font-bold">${price} GHO</span>
+              </div>
+              <div className="pt-4 border-t space-y-3">
+                <h3 className="text-sm font-medium text-gray-700">Asset Links</h3>
+                <a 
+                  href={imageUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded-lg text-sm text-blue-600 hover:text-blue-700 transition-colors"
+                >
+                  <LinkIcon className="w-4 h-4" />
+                  <span>View Original Image</span>
+                </a>
+                <a 
+                  href={embeddingsUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded-lg text-sm text-blue-600 hover:text-blue-700 transition-colors"
+                >
+                  <FileJson className="w-4 h-4" />
+                  <span>View Embeddings Data</span>
+                </a>
+                <a 
+                  href={folderUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded-lg text-sm text-blue-600 hover:text-blue-700 transition-colors"
+                >
+                  <LinkIcon className="w-4 h-4" />
+                  <span>View Asset Folder</span>
+                </a>
               </div>
             </CardContent>
           </Card>

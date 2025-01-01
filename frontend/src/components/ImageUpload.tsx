@@ -12,6 +12,7 @@ import Image from 'next/image';
 import { ConnectKitButton } from "connectkit";
 import { analyzeImage } from '@/lib/gemini';
 import { generateEmbeddings } from '@/lib/embeddings';
+import { uploadToLensStorage, type UploadResult } from '@/lib/storage';
 
 const ImageUpload = () => {
   const [preview, setPreview] = useState('');
@@ -20,7 +21,7 @@ const ImageUpload = () => {
   const [price, setPrice] = useState('');
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [analysis, setAnalysis] = useState('');
-  const [embeddings, setEmbeddings] = useState<number[]>([]);
+  const [uploadedUrls, setUploadedUrls] = useState<UploadResult | null>(null);
 
   const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -44,16 +45,22 @@ const ImageUpload = () => {
 
   const handleUpload = async (file: File) => {
     try {
+
       setStatus('uploading');
-      
+      if (!file) {
+        setError('No image file selected');
+        return;
+      }
+
       const analysis = await analyzeImage(file);
       setAnalysis(analysis);
       
       setStatus('generating');
       const embeddingVector = await generateEmbeddings(analysis);
 
-      console.log(embeddingVector);
-      setEmbeddings(embeddingVector);
+      // Upload to Lens storage
+      const uploadResult = await uploadToLensStorage(file, embeddingVector);
+      setUploadedUrls(uploadResult);
       
       setStatus('ready');
     } catch (error) {
@@ -66,7 +73,7 @@ const ImageUpload = () => {
   const getStatusMessage = () => {
     switch (status) {
       case 'uploading':
-        return 'Uploading image...';
+        return 'Analyzing image...';
       case 'generating':
         return 'Generating embeddings...';
       case 'ready':
@@ -81,8 +88,16 @@ const ImageUpload = () => {
     setShowAnalysis(true);
   };
 
-  if (showAnalysis && preview) {
-    return <ProductDetails imageUrl={preview} price={price} analysis={analysis} />;
+  if (showAnalysis && preview && uploadedUrls) {
+    return (
+      <ProductDetails 
+        imageUrl={uploadedUrls.imageUrl} 
+        price={price} 
+        analysis={analysis}
+        folderUrl={uploadedUrls.folderUrl}
+        embeddingsUrl={uploadedUrls.embeddingsUrl}
+      />
+    );
   }
 
   return (
