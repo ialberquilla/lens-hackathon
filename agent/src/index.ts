@@ -1,4 +1,5 @@
 import { ContractEventListener } from './ContractEventListener';
+import { ContractMessageManager } from './ContractMessageManager';
 import { config } from 'dotenv';
 
 // Load environment variables
@@ -17,12 +18,37 @@ const AssetFactoryABI = [
     "event AssetCreated(address indexed assetAddress, string name, string symbol, uint256 price, address coinAddress, string imageUrl, string embeddingsUrl)"
 ];
 
-const eventListener = new ContractEventListener({
-    rpcUrl: RPC_URL,
-    contractAddress: ASSET_FACTORY_ADDRESS,
-    contractABI: AssetFactoryABI,
-    eventName: 'AssetCreated'
-});
+async function main() {
+    const messageManager = new ContractMessageManager();
+    await messageManager.initialize();
 
-// Start listening for events
-eventListener.startListening();
+    const eventListener = new ContractEventListener({
+        rpcUrl: RPC_URL as string,
+        contractAddress: ASSET_FACTORY_ADDRESS as string,
+        contractABI: AssetFactoryABI,
+        eventName: 'AssetCreated'
+    });
+
+    // Start listening for events
+    eventListener.startListening();
+
+    // Handle process termination
+    process.on('SIGINT', async () => {
+        console.log('Received SIGINT. Cleaning up...');
+        eventListener.stopListening();
+        await messageManager.cleanup();
+        process.exit(0);
+    });
+
+    process.on('SIGTERM', async () => {
+        console.log('Received SIGTERM. Cleaning up...');
+        eventListener.stopListening();
+        await messageManager.cleanup();
+        process.exit(0);
+    });
+}
+
+main().catch(error => {
+    console.error('Error in main:', error);
+    process.exit(1);
+});
