@@ -38,18 +38,20 @@ export class ContractMessageManager implements ContractMessageHandler {
     }
 
     private async handleAssetCreated(event: ContractEvent): Promise<void> {
-        const [assetAddress, name, symbol, price, coinAddress, imageUrl, embeddingsUrl] = event.args;
+        const [owner, assetAddress, name, symbol, price, coinAddress, baseURI] = event.args;
         this.logger.log('New Asset event received:', {
+            owner,
             assetAddress,
             name,
             symbol,
             price: price.toString(),
             coinAddress,
-            imageUrl,
-            embeddingsUrl
+            baseURI
         });
 
         try {
+            const embeddingsUrl = `${baseURI}embeddings.json`;
+            
             const embeddingsResponse = await axios.get(embeddingsUrl);
             const embeddings = embeddingsResponse.data;
 
@@ -63,12 +65,13 @@ export class ContractMessageManager implements ContractMessageHandler {
                         similarity: asset.similarity,
                         description: asset.description,
                         imageUrl: asset.imageUrl
-                    }))
+                    })),
                 });
                 
             } else {
                 this.logger.log('No similar assets found, proceeding with creation');
                 
+
             }
         } catch (error) {
             this.logger.error('Error processing asset:', error);
