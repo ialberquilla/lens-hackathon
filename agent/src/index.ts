@@ -2,7 +2,6 @@ import { ContractEventListener } from './ContractEventListener';
 import { ContractMessageManager } from './ContractMessageManager';
 import { config } from 'dotenv';
 
-// Load environment variables
 config();
 
 const ASSET_FACTORY_ADDRESS = process.env.ASSET_FACTORY_ADDRESS;
@@ -13,9 +12,8 @@ if (!ASSET_FACTORY_ADDRESS || !RPC_URL) {
     process.exit(1);
 }
 
-// AssetFactory ABI - you'll need to copy this from your contracts build
 const AssetFactoryABI = [
-    "event AssetCreated(address indexed assetAddress, string name, string symbol, uint256 price, address coinAddress, string imageUrl, string embeddingsUrl)"
+    "event AssetCreated(address indexed owner, address indexed assetAddress, string name, string symbol, uint256 price, address coinAddress, string baseURI)"
 ];
 
 async function main() {
