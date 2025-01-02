@@ -11,7 +11,7 @@ export class Asset {
     @Column({ type: "varchar", length: 1000 })
     description!: string;
 
-    @Column({ type: "float", array: true })
+    @Column('jsonb', { nullable: true })
     embeddings!: number[];
 
     @Column({ type: "int", default: 0 })
