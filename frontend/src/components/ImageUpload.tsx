@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Upload, Check, FileImage } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -9,23 +9,96 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import ProductDetails from '@/components/ProductDetails';
 import Image from 'next/image';
-import { ConnectKitButton } from "connectkit";
+import { ConnectKitButton, useModal } from "connectkit";
+import { useAccount, useChainId, useWriteContract, useSwitchChain, useBalance } from 'wagmi';
+import { parseEther } from 'viem';
 import { analyzeImage } from '@/lib/gemini';
 import { generateEmbeddings } from '@/lib/embeddings';
 import { uploadToLensStorage, type UploadResult } from '@/lib/storage';
+import { WebSocketProvider, Contract, EventLog } from 'ethers';
+
+const AssetFactoryABI = [{
+  name: 'createAsset',
+  type: 'function',
+  stateMutability: 'nonpayable',
+  inputs: [
+    { name: 'name', type: 'string' },
+    { name: 'symbol', type: 'string' },
+    { name: 'price', type: 'uint256' },
+    { name: 'coinAddress', type: 'address' },
+    { name: 'baseURI', type: 'string' }
+  ],
+  outputs: [{ name: '', type: 'address' }]
+}, {
+  name: 'AssetCreated',
+  type: 'event',
+  inputs: [
+    { name: 'owner', type: 'address', indexed: true },
+    { name: 'assetAddress', type: 'address', indexed: true },
+    { name: 'name', type: 'string', indexed: false },
+    { name: 'symbol', type: 'string', indexed: false },
+    { name: 'price', type: 'uint256', indexed: false },
+    { name: 'coinAddress', type: 'address', indexed: false },
+    { name: 'baseURI', type: 'string', indexed: false }
+  ]
+}] as const;
+
+const ASSET_FACTORY_ADDRESS = process.env.NEXT_PUBLIC_ASSET_FACTORY_ADDRESS as `0x${string}`;
+const GHO_TOKEN_ADDRESS = process.env.NEXT_PUBLIC_GHO_TOKEN_ADDRESS as `0x${string}`;
+
+// Lens Network configuration
+const LENS_NETWORK = {
+  id: 37111,
+  name: 'Lens Network Sepolia Testnet',
+  rpcUrls: {
+    default: {
+      http: ['https://rpc.testnet.lens.dev'],
+    },
+    public: {
+      http: ['https://rpc.testnet.lens.dev'],
+    },
+  },
+  blockExplorerUrls: ['https://block-explorer.testnet.lens.dev'],
+  nativeCurrency: {
+    name: 'GRASS',
+    symbol: 'GRASS',
+    decimals: 18
+  }
+};
 
 const ImageUpload = () => {
   const [preview, setPreview] = useState('');
-  const [status, setStatus] = useState('idle'); // idle, uploading, generating, ready
+  const [status, setStatus] = useState('idle');
   const [error, setError] = useState('');
   const [price, setPrice] = useState('');
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [analysis, setAnalysis] = useState('');
   const [uploadedUrls, setUploadedUrls] = useState<UploadResult | null>(null);
+  const [transactionHash, setTransactionHash] = useState<string>('');
+  
+  const { address, isConnected } = useAccount();
+  const chainId = useChainId();
+  const { switchChainAsync } = useSwitchChain();
+  const { setOpen: openConnectModal } = useModal();
+  const { data: grassBalance } = useBalance({
+    address,
+    chainId: LENS_NETWORK.id
+  });
+
+  // Contract interaction hooks
+  const { writeContract, status: writeStatus, isPending, data: hash } = useWriteContract();
+  const isLoading = writeStatus === 'pending';
+
+  useEffect(() => {
+    if (hash) {
+      console.log('hash', hash);
+      setTransactionHash(hash);
+      setShowAnalysis(true);
+    }
+  }, [hash]);
 
   const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    // Allow only numbers and decimals
     if (value === '' || /^\d*\.?\d{0,2}$/.test(value)) {
       setPrice(value);
     }
@@ -45,7 +118,6 @@ const ImageUpload = () => {
 
   const handleUpload = async (file: File) => {
     try {
-
       setStatus('uploading');
       if (!file) {
         setError('No image file selected');
@@ -59,7 +131,7 @@ const ImageUpload = () => {
       const embeddingVector = await generateEmbeddings(analysis);
 
       // Upload to Lens storage
-      const uploadResult = await uploadToLensStorage(file, embeddingVector);
+      const uploadResult = await uploadToLensStorage(file, embeddingVector, address);
       setUploadedUrls(uploadResult);
       
       setStatus('ready');
@@ -83,9 +155,69 @@ const ImageUpload = () => {
     }
   };
 
-  const handlePublish = () => {
-    console.log('Publishing with price:', price);
-    setShowAnalysis(true);
+  const handlePublish = async () => {
+    if (!uploadedUrls || !price) return;
+
+    try {
+      setError('');
+
+      // Check wallet connection
+      if (!isConnected) {
+        openConnectModal(true);
+        return;
+      }
+
+      // Check network
+      if (!chainId) {
+        setError('Unable to detect network. Please check your wallet connection.');
+        return;
+      }
+
+      if (chainId !== LENS_NETWORK.id) {
+        try {
+          await switchChainAsync({ chainId: LENS_NETWORK.id });
+        } catch (error: any) {
+          // If the network doesn't exist in the wallet
+          if (error.code === 4902) {
+            setError(
+              'Lens Network not found in your wallet. Please add it manually:\n' +
+              'Network Name: Lens Network Sepolia Testnet\n' +
+              'RPC URL: https://rpc.testnet.lens.dev\n' +
+              'Chain ID: 37111'
+            );
+            return;
+          }
+          setError('Failed to switch network. Please switch to Lens Network manually.');
+          return;
+        }
+      }
+
+      // Check GRASS balance
+      if (!grassBalance || grassBalance.value === BigInt(0)) {
+        setError(
+          'You need GRASS tokens to publish on Lens Network. ' +
+          'Get tokens from the faucet: https://testnet.lenscan.io/faucet'
+        );
+        return;
+      }
+
+      // Create asset using the contract
+      writeContract({
+        abi: AssetFactoryABI,
+        address: ASSET_FACTORY_ADDRESS,
+        functionName: 'createAsset',
+        args: [
+          'AI Art NFT', // name
+          'AINFT', // symbol
+          parseEther(price), // price in wei
+          GHO_TOKEN_ADDRESS, // GHO token address
+          uploadedUrls.folderUrl, // baseURI
+        ],
+      });
+    } catch (error) {
+      console.error('Error creating asset:', error);
+      setError('Failed to create asset. Please try again.');
+    }
   };
 
   if (showAnalysis && preview && uploadedUrls) {
@@ -96,6 +228,7 @@ const ImageUpload = () => {
         analysis={analysis}
         folderUrl={uploadedUrls.folderUrl}
         embeddingsUrl={uploadedUrls.embeddingsUrl}
+        transactionHash={transactionHash}
       />
     );
   }
@@ -132,7 +265,7 @@ const ImageUpload = () => {
                     alt="Preview"
                     fill
                     className="object-contain rounded-lg"
-                    unoptimized // Since we're using blob URLs
+                    unoptimized
                   />
                 </div>
               )}
@@ -180,11 +313,24 @@ const ImageUpload = () => {
                   
                   <Button 
                     className="w-full bg-black text-white hover:bg-black/90"
-                    onClick={handlePublish}
-                    disabled={!price}
+                    onClick={(e) => !isConnected ? openConnectModal(true) : handlePublish()}
+                    disabled={!price || isPending || isLoading}
                   >
-                    <FileImage className="w-4 h-4 mr-2" />
-                    Publish!
+                    {isPending || isLoading ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-t-transparent border-white rounded-full animate-spin mr-2" />
+                        {isPending ? 'Confirm in Wallet...' : 'Creating...'}
+                      </>
+                    ) : !isConnected ? (
+                      'Connect Wallet'
+                    ) : chainId !== LENS_NETWORK.id ? (
+                      'Switch to Lens Network'
+                    ) : (
+                      <>
+                        <FileImage className="w-4 h-4 mr-2" />
+                        Publish!
+                      </>
+                    )}
                   </Button>
                 </div>
               )}

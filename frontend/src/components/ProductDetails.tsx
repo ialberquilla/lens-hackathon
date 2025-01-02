@@ -11,6 +11,7 @@ interface ProductDetailsProps {
   analysis: string;
   folderUrl: string;
   embeddingsUrl: string;
+  transactionHash: string;
 }
 
 interface AnalysisData {
@@ -25,7 +26,8 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({
   price, 
   analysis,
   folderUrl,
-  embeddingsUrl 
+  embeddingsUrl,
+  transactionHash 
 }) => {
   const [analysisData, setAnalysisData] = React.useState<AnalysisData>({
     category: '',
