@@ -1,17 +1,18 @@
 "use client"
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Brain, Star, ChevronDown, Link as LinkIcon, FileJson } from 'lucide-react';
 import Image from 'next/image';
 
 interface ProductDetailsProps {
   imageUrl: string;
-  price: string;
+  name: string;
+  description: string;
   analysis: string;
+  transactionHash: string;
   folderUrl: string;
   embeddingsUrl: string;
-  transactionHash: string;
 }
 
 interface AnalysisData {
@@ -21,22 +22,53 @@ interface AnalysisData {
   useCases: string;
 }
 
+interface AgentAnalysis {
+  status: 'PENDING' | 'ANALYZED' | 'ERROR';
+  decision?: boolean;
+  feedback?: string;
+  errorMessage?: string;
+}
+
+interface AgentStatus {
+  cartoon: AgentAnalysis | null;
+  nature: AgentAnalysis | null;
+}
+
 const ProductDetails: React.FC<ProductDetailsProps> = ({ 
-  imageUrl, 
-  price, 
+  imageUrl,
+  name,
+  description,
   analysis,
+  transactionHash,
   folderUrl,
-  embeddingsUrl,
-  transactionHash 
+  embeddingsUrl
 }) => {
-  const [analysisData, setAnalysisData] = React.useState<AnalysisData>({
+  const [processing, setProcessing] = useState(true);
+  const [agentStatus, setAgentStatus] = useState<AgentStatus>({
+    cartoon: { status: 'PENDING' },
+    nature: { status: 'PENDING' }
+  });
+
+  const [analysisData, setAnalysisData] = useState<AnalysisData>({
     category: '',
     description: '',
     style: '',
     useCases: ''
   });
 
-  React.useEffect(() => {
+  const [expandedAgents, setExpandedAgents] = useState<Record<string, boolean>>({
+    cartoon: true,
+    nature: true
+  });
+
+  const toggleAgentExpand = (agentType: string) => {
+    setExpandedAgents(prev => ({
+      ...prev,
+      [agentType]: !prev[agentType]
+    }));
+  };
+
+  useEffect(() => {
     if (analysis) {
       const sections = analysis.split('\n\n');
       const data: Partial<AnalysisData> = {};
@@ -65,72 +97,114 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({
     }
   }, [analysis]);
 
+  useEffect(() => {
+    if (!transactionHash) return;
+
+    const pollAgentStatus = async () => {
+      try {
+        const encodedHash = encodeURIComponent(transactionHash);
+        console.log('Polling status for:', encodedHash);
+        
+        const [cartoonRes, natureRes] = await Promise.all([
+          fetch(`${process.env.NEXT_PUBLIC_AGENT_CARTON_API_URL}/api/status/${encodedHash}?agentType=cartoon`),
+          fetch(`${process.env.NEXT_PUBLIC_AGENT_NATURE_API_URL}/api/status/${encodedHash}?agentType=nature`)
+        ]);
+
+        const cartoonData = await cartoonRes.json();
+        const natureData = await natureRes.json();
+
+        console.log('Cartoon response:', cartoonData);
+        console.log('Nature response:', natureData);
+
+        setAgentStatus(prev => ({
+          cartoon: cartoonData.error 
+            ? { status: 'ERROR', errorMessage: cartoonData.error }
+            : cartoonData,
+          nature: natureData.error 
+            ? { status: 'ERROR', errorMessage: natureData.error }
+            : natureData
+        }));
+
+        // Check if both agents have finished processing
+        const isComplete = 
+          (cartoonData.status === 'ANALYZED' || cartoonData.status === 'ERROR') &&
+          (natureData.status === 'ANALYZED' || natureData.status === 'ERROR');
+
+        if (!isComplete) {
+          setTimeout(pollAgentStatus, 5000);
+        }
+      } catch (error) {
+        console.error('Error polling agent status:', error);
+        setAgentStatus(prev => ({
+          cartoon: { status: 'ERROR', errorMessage: 'Failed to fetch agent status' },
+          nature: { status: 'ERROR', errorMessage: 'Failed to fetch agent status' }
+        }));
+        setTimeout(pollAgentStatus, 5000);
+      }
+    };
+
+    // Initialize with PENDING status
+    setAgentStatus({
+      cartoon: { status: 'PENDING' },
+      nature: { status: 'PENDING' }
+    });
+
+    // Start polling after 5 seconds delay
+    const initialPollTimeout = setTimeout(pollAgentStatus, 5000);
+
+    // Cleanup function
+    return () => {
+      clearTimeout(initialPollTimeout);
+      setAgentStatus({
+        cartoon: { status: 'PENDING' },
+        nature: { status: 'PENDING' }
+      });
+    };
+  }, [transactionHash]);
+
   const aiAgents = [
     {
       name: 'Cartoon Collector Agent',
       description: 'Analyzing similarity to existing cartoon images',
       icon: Brain,
-      status: 'Processing...',
       color: 'text-purple-500',
-      details: [
-        "Contemporary pop-art style detected with vibrant color palette",
-        "Strong use of primary colors: yellow (60%), blue (30%)",
-        "Playful character interpretation with dynamic pose",
-        "High contrast elements enhance visual appeal",
-        "Recommendation: Suitable for youth-oriented merchandise"
-      ]
+      type: 'cartoon'
     },
     {
       name: 'Nature Collector Agent',
       description: 'Analyzing similarity to existing nature images',
       icon: Brain,
-      status: 'Processing...',
       color: 'text-blue-500',
-      details: [
-        "Target demographic: 18-35 age group",
-        "High potential for accessories and apparel",
-        "Current market demand: Trending upward (23% YoY)",
-        "Similar styles showing strong performance in urban markets",
-        "Recommended pricing tier: Premium segment"
-      ]
+      type: 'nature'
     },
   ];
 
-  const [expandedAgents, setExpandedAgents] = React.useState(new Set<string>());
-
-  const toggleAgent = (agentName: string) => {
-    setExpandedAgents(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(agentName)) {
-        newSet.delete(agentName);
-      } else {
-        newSet.add(agentName);
-      }
-      return newSet;
-    });
-  };
-
   return (
-    <div className="container mx-auto py-12 px-4">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Image Section */}
-        <div className="lg:col-span-1">
-          <Card>
-            <CardContent className="p-6 space-y-4">
-              <div className="relative w-full h-96">
-                <Image
-                  src={imageUrl}
-                  alt="Uploaded artwork"
-                  fill
-                  className="rounded-lg object-contain"
-                  unoptimized // Since we're using blob URLs
-                />
+    <div className="grid gap-6 p-8">
+      {/* Asset Details Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Asset Details</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col md:flex-row gap-6">
+            <div className="flex-1">
+              <Image
+                src={imageUrl}
+                alt={name}
+                width={400}
+                height={400}
+                className="rounded-lg"
+              />
+            </div>
+            <div className="flex-1 space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold">{name}</h2>
+                <p className="text-gray-500 mt-2">{description}</p>
               </div>
-              <div className="flex items-center justify-between pt-4 border-t">
-                <span className="text-gray-600 font-medium">Price:</span>
-                <span className="text-xl font-bold">${price} GHO</span>
-              </div>
-              <div className="pt-4 border-t space-y-3">
+
+              {/* Asset Links */}
+              <div className="space-y-3">
                 <h3 className="text-sm font-medium text-gray-700">Asset Links</h3>
                 <a 
                   href={imageUrl} 
@@ -160,109 +234,101 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({
                   <span>View Asset Folder</span>
                 </a>
               </div>
-            </CardContent>
-          </Card>
-        </div>
 
-        {/* AI Agents Section */}
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-2xl font-bold">AI Analysis in Progress</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
+              {/* Agent Analysis Cards */}
+              <div className="space-y-4">
                 {aiAgents.map((agent, index) => (
-                  <div key={index} className="rounded-lg bg-gray-50 overflow-hidden">
-                    <button
-                      onClick={() => toggleAgent(agent.name)}
-                      className="w-full text-left p-4 flex items-start space-x-4 hover:bg-gray-100 transition-colors"
+                  <Card key={index}>
+                    <CardHeader 
+                      className="cursor-pointer"
+                      onClick={() => toggleAgentExpand(agent.type)}
                     >
-                      <div className={`p-2 rounded-full bg-white shadow-sm ${agent.color}`}>
-                        <agent.icon className="w-6 h-6" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <h3 className="font-semibold text-lg">{agent.name}</h3>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div className={`p-2 rounded-full bg-white shadow-sm ${agent.color}`}>
+                            <agent.icon className="w-6 h-6" />
+                          </div>
+                          <div>
+                            <CardTitle className="text-lg">{agent.name}</CardTitle>
+                            <p className="text-sm text-gray-500">{agent.description}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          {!agentStatus[agent.type] || agentStatus[agent.type]?.status === 'PENDING' ? (
+                            <div className="flex items-center space-x-2 px-3 py-1 rounded-full text-sm bg-blue-50 text-blue-600 border border-blue-600">
+                              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-current"></div>
+                              <span>Processing...</span>
+                            </div>
+                          ) : agentStatus[agent.type]?.status === 'ANALYZED' && (
+                            <div className={`px-3 py-1 rounded-full text-sm ${
+                              agentStatus[agent.type]?.decision 
+                              ? 'bg-green-100 text-green-800 border border-green-800' 
+                              : 'bg-red-100 text-red-800 border border-red-800'
+                            }`}>
+                              {agentStatus[agent.type]?.decision ? 'Will Buy' : 'Will Not Buy'}
+                            </div>
+                          )}
                           <ChevronDown 
-                            className={`w-5 h-5 transform transition-transform ${
-                              expandedAgents.has(agent.name) ? 'rotate-180' : ''
+                            className={`w-5 h-5 transition-transform ${
+                              expandedAgents[agent.type] ? 'transform rotate-180' : ''
                             }`}
                           />
                         </div>
-                        <p className="text-gray-600 mt-1">{agent.description}</p>
-                        <div className="mt-2">
-                          {agent.status === 'Processing...' ? (
-                            <div className="flex items-center space-x-2">
-                              <div className="w-4 h-4 border-2 border-t-transparent border-blue-500 rounded-full animate-spin" />
-                              <span className="text-sm text-blue-500">{agent.status}</span>
-                            </div>
-                          ) : (
-                            <span className="text-sm text-green-500 flex items-center space-x-1">
-                              <Star className="w-4 h-4" />
-                              <span>Complete</span>
-                            </span>
-                          )}
-                        </div>
                       </div>
-                    </button>
-                    
-                    {/* Collapsible Details Section */}
-                    <div className={`
-                      overflow-hidden transition-all duration-300
-                      ${expandedAgents.has(agent.name) ? 'max-h-96' : 'max-h-0'}
-                    `}>
-                      <div className="p-4 bg-white border-t border-gray-100">
-                        <ul className="space-y-2 text-gray-600">
-                          {agent.details.map((detail, idx) => (
-                            <li key={idx} className="flex items-start">
-                              <span className="mr-2">•</span>
-                              <span>{detail}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
+                    </CardHeader>
+                    {expandedAgents[agent.type] && (
+                      <CardContent>
+                        {agentStatus[agent.type]?.status === 'ANALYZED' && (
+                          <div className="prose">
+                            <p className="whitespace-pre-wrap">{agentStatus[agent.type]?.feedback}</p>
+                          </div>
+                        )}
+                        
+                        {agentStatus[agent.type]?.status === 'ERROR' && (
+                          <div className="text-red-600">
+                            <p>Error: {agentStatus[agent.type]?.errorMessage}</p>
+                          </div>
+                        )}
+                      </CardContent>
+                    )}
+                  </Card>
                 ))}
               </div>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-        {/* Gemini Analysis Section */}
-        <div className="lg:col-span-3">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-2xl font-bold">AI Image Analysis</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">Category</h3>
-                  <p className="text-gray-700 bg-gray-50 p-3 rounded-lg">{analysisData.category}</p>
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">Style</h3>
-                  <p className="text-gray-700 bg-gray-50 p-3 rounded-lg">{analysisData.style}</p>
-                </div>
-                <div className="md:col-span-2">
-                  <h3 className="text-lg font-semibold mb-2">Description</h3>
-                  <p className="text-gray-700 bg-gray-50 p-3 rounded-lg">{analysisData.description}</p>
-                </div>
-                <div className="md:col-span-2">
-                  <h3 className="text-lg font-semibold mb-2">Potential Use Cases</h3>
-                  <ul className="list-disc list-inside text-gray-700 bg-gray-50 p-3 rounded-lg">
-                    {analysisData.useCases.split(',').map((useCase, index) => (
-                      <li key={index} className="mb-1">{useCase.trim()}</li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      {/* Initial Analysis Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Initial Analysis</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Category</h3>
+              <p className="text-gray-700 bg-gray-50 p-3 rounded-lg">{analysisData.category}</p>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Style</h3>
+              <p className="text-gray-700 bg-gray-50 p-3 rounded-lg">{analysisData.style}</p>
+            </div>
+            <div className="md:col-span-2">
+              <h3 className="text-lg font-semibold mb-2">Description</h3>
+              <p className="text-gray-700 bg-gray-50 p-3 rounded-lg">{analysisData.description}</p>
+            </div>
+            <div className="md:col-span-2">
+              <h3 className="text-lg font-semibold mb-2">Potential Use Cases</h3>
+              <ul className="list-disc list-inside text-gray-700 bg-gray-50 p-3 rounded-lg">
+                {analysisData.useCases.split(',').map((useCase, index) => (
+                  <li key={index} className="mb-1">{useCase.trim()}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
