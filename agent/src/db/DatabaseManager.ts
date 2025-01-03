@@ -3,7 +3,11 @@ import { Asset } from "./entities/Asset";
 import "reflect-metadata";
 
 export class DatabaseManager {
-    constructor() {}
+    private agentType: string;
+
+    constructor(agentType: string) {
+        this.agentType = agentType;
+    }
 
     public async initialize(): Promise<void> {
         try {
@@ -30,13 +34,14 @@ export class DatabaseManager {
         asset.embeddings = embeddings;
         asset.imageUrl = imageUrl;
         asset.embeddingsUrl = embeddingsUrl;
+        asset.agentType = this.agentType;
 
         return await AppDataSource.manager.save(asset);
     }
 
     public async findAssetByContractAddress(contractAddress: string): Promise<Asset | null> {
         return await AppDataSource.manager.findOne(Asset, {
-            where: { contractAddress }
+            where: { contractAddress, agentType: this.agentType }
         });
     }
 
@@ -49,9 +54,10 @@ export class DatabaseManager {
             `SELECT a.*, 
                 1 - (embeddings <=> $1::vector(1024)) as similarity
              FROM asset a
-             WHERE 1 - (embeddings <=> $1::vector(1024)) > $2
+             WHERE a.agent_type = $2
+             AND 1 - (embeddings <=> $1::vector(1024)) > $3
              ORDER BY similarity DESC`,
-            [`[${embeddings.join(',')}]`, similarityThreshold]
+            [`[${embeddings.join(',')}]`, this.agentType, similarityThreshold]
         );
         return result;
     }
@@ -65,10 +71,11 @@ export class DatabaseManager {
             `SELECT a.*, 
                 1 - (embeddings <=> $1::vector(1024)) as similarity
              FROM asset a
-             WHERE a.contract_address != $2
-             AND 1 - (embeddings <=> $1::vector(1024)) > $3
+             WHERE a.agent_type = $2
+             AND a.contract_address != $3
+             AND 1 - (embeddings <=> $1::vector(1024)) > $4
              ORDER BY similarity DESC`,
-            [`[${embeddings.join(',')}]`, contractAddress, similarityThreshold]
+            [`[${embeddings.join(',')}]`, this.agentType, contractAddress, similarityThreshold]
         );
         return result;
     }

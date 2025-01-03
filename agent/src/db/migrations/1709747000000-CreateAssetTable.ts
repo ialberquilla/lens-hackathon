@@ -17,7 +17,8 @@ export class CreateAssetTable1709747000000 implements MigrationInterface {
                 "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
                 "contractAddress" VARCHAR(42) NOT NULL UNIQUE,
                 "imageUrl" VARCHAR(255) NOT NULL,
-                "embeddingsUrl" VARCHAR(255) NOT NULL
+                "embeddingsUrl" VARCHAR(255) NOT NULL,
+                "agent_type" VARCHAR(50) NOT NULL
             )
         `);
 
@@ -27,10 +28,16 @@ export class CreateAssetTable1709747000000 implements MigrationInterface {
             USING ivfflat (embeddings vector_cosine_ops)
             WITH (lists = 100)
         `);
+
+        // Create an index for agent type filtering
+        await queryRunner.query(`
+            CREATE INDEX asset_agent_type_idx ON asset("agent_type")
+        `);
     }
 
     public async down(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`DROP INDEX IF EXISTS asset_embeddings_idx`);
+        await queryRunner.query(`DROP INDEX IF EXISTS asset_agent_type_idx`);
         await queryRunner.query(`DROP TABLE IF EXISTS "asset"`);
     }
 } 

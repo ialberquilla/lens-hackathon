@@ -38,6 +38,9 @@ export class Asset {
     @Column({ type: "varchar", length: 255 })
     embeddingsUrl!: string;
 
+    @Column({ type: "varchar", length: 50, name: "agent_type" })
+    agentType!: string;
+
     // Virtual field for similarity score (not stored in DB)
     similarity?: number;
 } 

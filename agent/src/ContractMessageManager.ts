@@ -5,10 +5,12 @@ import axios from 'axios';
 export class ContractMessageManager implements ContractMessageHandler {
     private logger: Console;
     private dbManager: DatabaseManager;
+    private agentType: string;
 
     constructor() {
         this.logger = console;
-        this.dbManager = new DatabaseManager();
+        this.agentType = process.env.AGENT_TYPE || 'cartoon';
+        this.dbManager = new DatabaseManager(this.agentType);
     }
 
     public async initialize(): Promise<void> {
