@@ -1,6 +1,8 @@
 import { ContractEvent, ContractMessageHandler } from './types';
 import { DatabaseManager } from './db/DatabaseManager';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { AgentLog, AgentLogStatus } from './db/entities/AgentLog';
+import { AppDataSource } from './db/data-source';
 import axios from 'axios';
 
 export class ContractMessageManager implements ContractMessageHandler {
@@ -8,11 +10,13 @@ export class ContractMessageManager implements ContractMessageHandler {
     private dbManager: DatabaseManager;
     private agentType: string;
     private genAI: GoogleGenerativeAI;
+    private agentLogRepository;
 
     constructor() {
         this.logger = console;
         this.agentType = process.env.AGENT_TYPE || 'cartoon';
         this.dbManager = new DatabaseManager(this.agentType);
+        this.agentLogRepository = AppDataSource.getRepository(AgentLog);
         
         const API_KEY = process.env.GEMINI_API_KEY;
         if (!API_KEY) {
@@ -21,8 +25,10 @@ export class ContractMessageManager implements ContractMessageHandler {
         this.genAI = new GoogleGenerativeAI(API_KEY);
     }
 
-    public async initialize(): Promise<void> {
-        await this.dbManager.initialize();
+    public async initialize(shouldInitDb: boolean = true): Promise<void> {
+        if (shouldInitDb) {
+            await this.dbManager.initialize();
+        }
     }
 
     private async analyzeSimilarAssets(
@@ -66,7 +72,7 @@ export class ContractMessageManager implements ContractMessageHandler {
 
             // Parse the response
             const decisionMatch = text.match(/Decision:\s*(YES|NO)/i);
-            const reasoningMatch = text.match(/Reasoning:\s*(.*)/s);
+            const reasoningMatch = text.match(/Feedback:\s*(.*)/s);
 
             const shouldBuy = decisionMatch?.[1].toUpperCase() === 'YES';
             const feedback = reasoningMatch?.[1].trim() || text;
@@ -79,20 +85,36 @@ export class ContractMessageManager implements ContractMessageHandler {
     }
 
     public async handleContractEvent(event: ContractEvent): Promise<void> {
-        this.logger.log('Processing contract event:', {
-            eventName: event.eventName,
-            blockNumber: event.blockNumber,
-            transactionHash: event.transactionHash,
-            args: event.args
-        });
-
         try {
+            // Get transaction hash from the event log
+            const transactionHash = event.args[event.args.length - 1]?.log?.transactionHash;
+            if (!transactionHash) {
+                throw new Error('Transaction hash not found in event');
+            }
+
+            this.logger.log('Processing contract event:', {
+                eventName: event.eventName,
+                blockNumber: event.blockNumber,
+                transactionHash,
+                args: event.args
+            });
+
+            // Create initial log entry
+            const log = new AgentLog();
+            log.transactionId = transactionHash;
+            log.agentType = this.agentType;
+            log.status = AgentLogStatus.PENDING;
+            await this.agentLogRepository.save(log);
+
             switch (event.eventName) {
                 case 'AssetCreated':
-                    await this.handleAssetCreated(event);
+                    await this.handleAssetCreated(event, log);
                     break;
                 default:
                     this.logger.warn(`No handler implemented for event: ${event.eventName}`);
+                    log.status = AgentLogStatus.ERROR;
+                    log.errorMessage = `No handler implemented for event: ${event.eventName}`;
+                    await this.agentLogRepository.save(log);
             }
         } catch (error) {
             this.logger.error('Error handling contract event:', error);
@@ -100,7 +122,7 @@ export class ContractMessageManager implements ContractMessageHandler {
         }
     }
 
-    private async handleAssetCreated(event: ContractEvent): Promise<void> {
+    private async handleAssetCreated(event: ContractEvent, log: AgentLog): Promise<void> {
         const [owner, assetAddress, name, symbol, price, coinAddress, baseURI] = event.args;
         this.logger.log('New Asset event received:', {
             owner,
@@ -149,6 +171,12 @@ export class ContractMessageManager implements ContractMessageHandler {
                     feedback: analysis.feedback
                 });
 
+                // Update log with analysis results
+                log.status = AgentLogStatus.ANALYZED;
+                log.decision = analysis.shouldBuy;
+                log.feedback = analysis.feedback;
+                await this.agentLogRepository.save(log);
+
                 if (analysis.shouldBuy) {
                     this.logger.log('Decision: Will buy asset', {
                         assetAddress,
@@ -163,10 +191,17 @@ export class ContractMessageManager implements ContractMessageHandler {
                 
             } else {
                 this.logger.log('No similar assets found');
+                log.status = AgentLogStatus.ANALYZED;
+                log.decision = false;
+                log.feedback = 'No similar assets found in portfolio';
+                await this.agentLogRepository.save(log);
             }
 
         } catch (error) {
             this.logger.error('Error processing asset:', error);
+            log.status = AgentLogStatus.ERROR;
+            log.errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            await this.agentLogRepository.save(log);
             throw error;
         }
     }

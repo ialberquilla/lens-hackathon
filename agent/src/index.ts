@@ -1,5 +1,7 @@
-import { ContractEventListener } from './ContractEventListener';
 import { ContractMessageManager } from './ContractMessageManager';
+import { ContractEventListener } from './ContractEventListener'
+import { startServer } from './api/server';
+import { AppDataSource } from './db/data-source';
 import { config } from 'dotenv';
 
 config();
@@ -17,34 +19,48 @@ const AssetFactoryABI = [
 ];
 
 async function main() {
-    const messageManager = new ContractMessageManager();
-    await messageManager.initialize();
+    try {
+        // Initialize database connection first
+        await AppDataSource.initialize();
+        console.log('Database connection initialized');
 
+        // Start the API server (without initializing DB again)
+        await startServer();
+        console.log('API server started');
 
-    const eventListener = new ContractEventListener({
-        rpcUrl: RPC_URL as string,
-        contractAddress: ASSET_FACTORY_ADDRESS as string,
-        contractABI: AssetFactoryABI,
-        eventName: 'AssetCreated'
-    });
+        // Initialize the contract message manager (without initializing DB again)
+        const messageManager = new ContractMessageManager();
+        await messageManager.initialize(false); // Pass false to skip DB initialization
 
-    // Start listening for events
-    eventListener.startListening();
+        const eventListener = new ContractEventListener({
+            rpcUrl: RPC_URL as string,
+            contractAddress: ASSET_FACTORY_ADDRESS as string,
+            contractABI: AssetFactoryABI,
+            eventName: 'AssetCreated'
+        });
 
-    // Handle process termination
-    process.on('SIGINT', async () => {
-        console.log('Received SIGINT. Cleaning up...');
-        eventListener.stopListening();
-        await messageManager.cleanup();
-        process.exit(0);
-    });
+        // Start listening for events
+        eventListener.startListening();
 
-    process.on('SIGTERM', async () => {
-        console.log('Received SIGTERM. Cleaning up...');
-        eventListener.stopListening();
-        await messageManager.cleanup();
-        process.exit(0);
-    });
+        // Handle process termination
+        process.on('SIGINT', async () => {
+            console.log('Received SIGINT. Cleaning up...');
+            eventListener.stopListening();
+            await messageManager.cleanup();
+            process.exit(0);
+        });
+
+        process.on('SIGTERM', async () => {
+            console.log('Received SIGTERM. Cleaning up...');
+            eventListener.stopListening();
+            await messageManager.cleanup();
+            process.exit(0);
+        });
+
+    } catch (error) {
+        console.error('Error in main:', error);
+        process.exit(1);
+    }
 }
 
 main().catch(error => {
