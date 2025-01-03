@@ -5,6 +5,9 @@ import { AddArrayToVectorFunction1709747001000 } from "./migrations/170974700100
 import { CreateAgentLogsTable1709747002000 } from "./migrations/1709747002000-CreateAgentLogsTable";
 import "reflect-metadata";
 import { AgentLog } from "./entities/AgentLog";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 export const AppDataSource = new DataSource({
     type: "postgres",
@@ -15,6 +18,12 @@ export const AppDataSource = new DataSource({
     database: process.env.DB_NAME || "lens_hackathon",
     synchronize: false,
     logging: true,
+    ssl: true,
+    extra: {
+        ssl: {
+            rejectUnauthorized: false
+        }
+    },
     entities: [Asset, AgentLog],
     migrations: [
         CreateAssetTable1709747000000,
