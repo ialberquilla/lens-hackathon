@@ -1,6 +1,7 @@
 import { AppDataSource } from '../db/data-source';
 import { Asset } from '../db/entities/Asset';
 import { cartoonAssets } from '../mock/cartoon-assets';
+import { natureAssets } from '../mock/nature-assets';
 import axios from 'axios';
 import { config } from 'dotenv';
 
@@ -74,6 +75,43 @@ async function initializeAssets() {
       }
     } else {
       console.log(`Skipping cartoon assets initialization for agent type: ${AGENT_TYPE}`);
+    }
+
+    if (AGENT_TYPE === 'nature') {
+      for (const asset of natureAssets) {
+        // Check if asset already exists
+        const existingAsset = await assetRepository.findOne({
+          where: { 
+            contractAddress: asset.contractAddress,
+            agentType: AGENT_TYPE
+          }
+        });
+
+        if (!existingAsset) {
+          console.log(`Processing new asset ID: ${asset.assetId}`);
+          // Generate embeddings for the entire description
+          const embeddings = await generateEmbeddings(asset.description);
+          // Create new asset in DB
+          const newAsset = assetRepository.create({
+            assetId: asset.assetId,
+            price: asset.price,
+            description: asset.description,
+            likes: asset.likes,
+            createdAt: asset.createdAt,
+            updatedAt: asset.updatedAt,
+            contractAddress: asset.contractAddress,
+            imageUrl: asset.imageUrl,
+            embeddingsUrl: asset.embeddingsUrl,
+            embeddings: embeddings,
+            agentType: AGENT_TYPE
+          });
+          await assetRepository.save(newAsset);
+          console.log(`Created asset ID: ${asset.assetId} with embeddings`);
+        } else {
+          console.log(`Asset ID: ${asset.assetId} already exists, skipping`);
+        }
+      }
+      
     }
 
     console.log('Asset initialization completed successfully');
