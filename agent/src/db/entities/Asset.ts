@@ -11,7 +11,13 @@ export class Asset {
     @Column({ type: "varchar", length: 1000 })
     description!: string;
 
-    @Column('jsonb', { nullable: true })
+    @Column({ type: "decimal", array: true, transformer: {
+        to: (value: number[]): string => `[${value.join(',')}]`,
+        from: (value: string): number[] => 
+            value.substring(1, value.length - 1)
+                .split(',')
+                .map(Number)
+    }})
     embeddings!: number[];
 
     @Column({ type: "int", default: 0 })

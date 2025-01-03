@@ -36,7 +36,7 @@ async function initializeAssets() {
     for (const asset of cartoonAssets) {
       // Check if asset already exists
       const existingAsset = await assetRepository.findOne({
-        where: { assetId: asset.assetId }
+        where: { contractAddress: asset.contractAddress }
       });
 
       if (!existingAsset) {

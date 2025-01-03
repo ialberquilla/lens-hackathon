@@ -20,6 +20,7 @@ async function main() {
     const messageManager = new ContractMessageManager();
     await messageManager.initialize();
 
+
     const eventListener = new ContractEventListener({
         rpcUrl: RPC_URL as string,
         contractAddress: ASSET_FACTORY_ADDRESS as string,

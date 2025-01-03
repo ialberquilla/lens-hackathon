@@ -45,14 +45,13 @@ export class DatabaseManager {
     }
 
     public async findSimilarAssets(embeddings: number[], similarityThreshold: number = 0.25): Promise<Asset[]> {
-
         const result = await AppDataSource.query(
             `SELECT a.*, 
-                    1 - (a.embeddings <=> $1::vector) as similarity
+                1 - (embeddings <=> $1::vector(1024)) as similarity
              FROM asset a
-             WHERE 1 - (a.embeddings <=> $1::vector) > $2
+             WHERE 1 - (embeddings <=> $1::vector(1024)) > $2
              ORDER BY similarity DESC`,
-            [embeddings, similarityThreshold]
+            [`[${embeddings.join(',')}]`, similarityThreshold]
         );
         return result;
     }
@@ -64,12 +63,12 @@ export class DatabaseManager {
     ): Promise<Asset[]> {
         const result = await AppDataSource.query(
             `SELECT a.*, 
-                    1 - (a.embeddings <=> $1::vector) as similarity
+                1 - (embeddings <=> $1::vector(1024)) as similarity
              FROM asset a
              WHERE a.contract_address != $2
-             AND 1 - (a.embeddings <=> $1::vector) > $3
+             AND 1 - (embeddings <=> $1::vector(1024)) > $3
              ORDER BY similarity DESC`,
-            [embeddings, contractAddress, similarityThreshold]
+            [`[${embeddings.join(',')}]`, contractAddress, similarityThreshold]
         );
         return result;
     }

@@ -5,13 +5,13 @@ export class CreateAssetTable1709747000000 implements MigrationInterface {
         // First, create the vector extension if it doesn't exist
         await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS vector`);
 
-        // Create the asset table
+        // Create the asset table with vector type
         await queryRunner.query(`
             CREATE TABLE "asset" (
                 "assetId" SERIAL PRIMARY KEY,
                 "price" DECIMAL(20,2) NOT NULL,
                 "description" VARCHAR(1000) NOT NULL,
-                "embeddings" vector(1536),
+                "embeddings" vector(1024) NOT NULL,
                 "likes" INTEGER NOT NULL DEFAULT 0,
                 "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
                 "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),

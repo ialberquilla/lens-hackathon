@@ -50,10 +50,21 @@ export class ContractMessageManager implements ContractMessageHandler {
         });
 
         try {
-            const embeddingsUrl = `${baseURI}embeddings.json`;
+            // First, get the list of files
+            const filesResponse = await axios.get(baseURI);
+            const files = filesResponse.data.files;
             
+            // Get the second file's gateway URL (index 1)
+            const embeddingsUrl = files[1].gateway_url;
+            
+            // Fetch the actual embeddings
             const embeddingsResponse = await axios.get(embeddingsUrl);
-            const embeddings = embeddingsResponse.data;
+
+            console.log({embeddingsResponse})
+
+            const embeddings = embeddingsResponse.data[0]; // Get the first array of embeddings
+
+            console.log({embeddings})
 
             const similarAssets = await this.dbManager.findSimilarAssets(embeddings, 0.25);
 
@@ -81,5 +92,13 @@ export class ContractMessageManager implements ContractMessageHandler {
 
     public async cleanup(): Promise<void> {
         await this.dbManager.disconnect();
+    }
+
+    public async testQuery(embeddings: any): Promise<void> {
+
+        const similar = await this.dbManager.findSimilarAssets(embeddings)
+
+        console.log({similar})
+
     }
 } 
