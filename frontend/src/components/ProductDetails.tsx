@@ -23,10 +23,11 @@ interface AnalysisData {
 }
 
 interface AgentAnalysis {
-  status: 'PENDING' | 'ANALYZED' | 'ERROR';
+  status: 'PENDING' | 'ANALYZED' | 'PURCHASED' | 'ERROR';
   decision?: boolean;
   feedback?: string;
   errorMessage?: string;
+  transactionMint?: string;
 }
 
 interface AgentStatus {
@@ -127,8 +128,8 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({
 
         // Check if both agents have finished processing
         const isComplete = 
-          (cartoonData.status === 'ANALYZED' || cartoonData.status === 'ERROR') &&
-          (natureData.status === 'ANALYZED' || natureData.status === 'ERROR');
+          ((cartoonData.status === 'ANALYZED' && !cartoonData.decision) || cartoonData.status === 'PURCHASED' || cartoonData.status === 'ERROR') &&
+          ((natureData.status === 'ANALYZED' && !natureData.decision) || natureData.status === 'PURCHASED' || natureData.status === 'ERROR');
 
         if (!isComplete) {
           setTimeout(pollAgentStatus, 5000);
@@ -259,15 +260,19 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({
                               <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-current"></div>
                               <span>Processing...</span>
                             </div>
-                          ) : agentStatus[agent.type]?.status === 'ANALYZED' && (
+                          ) : agentStatus[agent.type]?.status === 'ANALYZED' ? (
                             <div className={`px-3 py-1 rounded-full text-sm ${
                               agentStatus[agent.type]?.decision 
-                              ? 'bg-green-100 text-green-800 border border-green-800' 
+                              ? 'bg-yellow-100 text-yellow-800 border border-yellow-800' 
                               : 'bg-red-100 text-red-800 border border-red-800'
                             }`}>
                               {agentStatus[agent.type]?.decision ? 'Will Buy' : 'Will Not Buy'}
                             </div>
-                          )}
+                          ) : agentStatus[agent.type]?.status === 'PURCHASED' ? (
+                            <div className="px-3 py-1 rounded-full text-sm bg-green-100 text-green-800 border border-green-800">
+                              Purchased
+                            </div>
+                          ) : null}
                           <ChevronDown 
                             className={`w-5 h-5 transition-transform ${
                               expandedAgents[agent.type] ? 'transform rotate-180' : ''
@@ -278,12 +283,46 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({
                     </CardHeader>
                     {expandedAgents[agent.type] && (
                       <CardContent>
-                        {agentStatus[agent.type]?.status === 'ANALYZED' && (
-                          <div className="prose">
-                            <p className="whitespace-pre-wrap">{agentStatus[agent.type]?.feedback}</p>
-                          </div>
-                        )}
-                        
+                        <div className="mt-4">
+                          {(agentStatus[agent.type as keyof AgentStatus]?.status === 'ANALYZED' || 
+                            agentStatus[agent.type as keyof AgentStatus]?.status === 'PURCHASED') && (
+                            <div className="space-y-2">
+                              <div className="font-medium">
+                                Decision: {
+                                  agentStatus[agent.type as keyof AgentStatus]?.status === 'PURCHASED' 
+                                    ? 'Purchased' 
+                                    : agentStatus[agent.type as keyof AgentStatus]?.decision 
+                                      ? 'Will buy' 
+                                      : 'Will not buy'
+                                }
+                              </div>
+                              {agentStatus[agent.type as keyof AgentStatus]?.feedback && (
+                                <div className="text-sm text-gray-600">
+                                  {agentStatus[agent.type as keyof AgentStatus]?.feedback}
+                                </div>
+                              )}
+                              {(agentStatus[agent.type as keyof AgentStatus]?.status === 'PURCHASED' && 
+                                agentStatus[agent.type as keyof AgentStatus]?.transactionMint) && (
+                                <a 
+                                  href={`https://block-explorer.testnet.lens.dev/tx/${agentStatus[agent.type as keyof AgentStatus]?.transactionMint}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center space-x-2 text-sm text-blue-600 hover:text-blue-700"
+                                >
+                                  <LinkIcon className="w-4 h-4" />
+                                  <span>View Transaction</span>
+                                </a>
+                              )}
+                              {agentStatus[agent.type as keyof AgentStatus]?.status === 'ANALYZED' && 
+                               agentStatus[agent.type as keyof AgentStatus]?.decision && (
+                                <div className="flex items-center space-x-2 px-3 py-1 text-sm bg-yellow-50 text-yellow-800">
+                                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-current"></div>
+                                  <span>Processing purchase...</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
                         {agentStatus[agent.type]?.status === 'ERROR' && (
                           <div className="text-red-600">
                             <p>Error: {agentStatus[agent.type]?.errorMessage}</p>
