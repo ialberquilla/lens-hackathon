@@ -147,7 +147,7 @@ const ImageUpload = () => {
       case 'uploading':
         return 'Analyzing image...';
       case 'generating':
-        return 'Generating embeddings...';
+        return 'Generating embeddings... (this may take a few minutes)';
       case 'ready':
         return 'Image processed successfully!';
       default:
