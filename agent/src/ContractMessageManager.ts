@@ -219,7 +219,11 @@ export class ContractMessageManager implements ContractMessageHandler {
             // First approve the asset contract to spend tokens
             this.logger.log('Approving token spend...');
             try {
-                const approveTx = await erc20Contract.approve(assetAddress, price);
+                const feeData = await this.provider.getFeeData();
+                const approveTx = await erc20Contract.approve(assetAddress, price, {
+                    maxFeePerGas: feeData.maxFeePerGas! * 2n,
+                    maxPriorityFeePerGas: feeData.maxPriorityFeePerGas! * 2n
+                });
                 this.logger.log('Approval transaction sent:', approveTx.hash);
                 
                 // Wait for approval to be confirmed
@@ -234,7 +238,11 @@ export class ContractMessageManager implements ContractMessageHandler {
             // Then mint the asset
             this.logger.log('Minting asset...');
             try {
-                const mintTx = await assetContract.mint(this.wallet.address, 1);
+                const feeData = await this.provider.getFeeData();
+                const mintTx = await assetContract.mint(this.wallet.address, 1, {
+                    maxFeePerGas: feeData.maxFeePerGas! * 2n,
+                    maxPriorityFeePerGas: feeData.maxPriorityFeePerGas! * 2n
+                });
                 this.logger.log('Mint transaction sent:', mintTx.hash);
                 
                 // Wait a short time for transaction to propagate
