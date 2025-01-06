@@ -3,7 +3,7 @@ import { MigrationInterface, QueryRunner } from "typeorm";
 export class CreateAgentLogsTable1709747002000 implements MigrationInterface {
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`
-            CREATE TYPE agent_log_status AS ENUM ('PENDING', 'ANALYZED', 'ERROR');
+            CREATE TYPE agent_log_status AS ENUM ('PENDING', 'ANALYZED', 'PURCHASED', 'ERROR');
             
             CREATE TABLE "agent_log" (
                 "id" SERIAL PRIMARY KEY,

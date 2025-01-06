@@ -3,7 +3,19 @@ import { DatabaseManager } from './db/DatabaseManager';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { AgentLog, AgentLogStatus } from './db/entities/AgentLog';
 import { AppDataSource } from './db/data-source';
+import { Wallet, Contract, Provider } from 'zksync-ethers';
 import axios from 'axios';
+
+// ABI for ERC20 (GHO token) approve function
+const ERC20_ABI = [
+    "function approve(address spender, uint256 amount) public returns (bool)"
+];
+
+// ABI for Asset contract mint function
+const ASSET_ABI = [
+    "function mint(address to, uint256 tokenId) public",
+    "function getPrice() public view returns (uint256)"
+];
 
 export class ContractMessageManager implements ContractMessageHandler {
     private logger: Console;
@@ -11,6 +23,8 @@ export class ContractMessageManager implements ContractMessageHandler {
     private agentType: string;
     private genAI: GoogleGenerativeAI;
     private agentLogRepository;
+    private wallet: Wallet;
+    private provider: Provider;
 
     constructor() {
         this.logger = console;
@@ -23,6 +37,15 @@ export class ContractMessageManager implements ContractMessageHandler {
             throw new Error('Missing GEMINI_API_KEY environment variable');
         }
         this.genAI = new GoogleGenerativeAI(API_KEY);
+
+        // Initialize provider and wallet
+        const PRIVATE_KEY = process.env.AGENT_PRIVATE_KEY;
+        if (!PRIVATE_KEY) {
+            throw new Error('Missing AGENT_PRIVATE_KEY environment variable');
+        }
+
+        this.provider = new Provider(process.env.RPC_URL_HTTP as string);
+        this.wallet = new Wallet(PRIVATE_KEY, this.provider);
     }
 
     public async initialize(shouldInitDb: boolean = true): Promise<void> {
@@ -122,6 +145,66 @@ export class ContractMessageManager implements ContractMessageHandler {
         }
     }
 
+    private async buyAsset(
+        assetAddress: string,
+        coinAddress: string,
+        price: bigint,
+        log: AgentLog,
+        embeddings: number[],
+        description: string,
+        imageUrl: string,
+        embeddingsUrl: string
+    ): Promise<void> {
+        try {
+            this.logger.log('Initiating asset purchase:', {
+                assetAddress,
+                coinAddress,
+                price: price.toString()
+            });
+
+            // Create contract instances
+            const erc20Contract = new Contract(coinAddress, ERC20_ABI, this.wallet);
+            const assetContract = new Contract(assetAddress, ASSET_ABI, this.wallet);
+
+            // First approve the asset contract to spend tokens
+            this.logger.log('Approving token spend...');
+            const approveTx = await erc20Contract.approve(assetAddress, price);
+            const approveReceipt = await approveTx.wait();
+            this.logger.log('Token spend approved, tx:', approveReceipt.hash);
+
+            // Then mint the asset
+            // Use tokenId 1 as it's the first mint
+            this.logger.log('Minting asset...');
+            const mintTx = await assetContract.mint(this.wallet.address, 1);
+            const mintReceipt = await mintTx.wait();
+            this.logger.log('Asset minted successfully, tx:', mintReceipt.hash);
+
+            // Update agent log with purchase status and mint transaction
+            log.status = AgentLogStatus.PURCHASED;
+            log.transactionMint = mintReceipt.hash;
+            await this.agentLogRepository.save(log);
+
+            // Store the asset in our database
+            await this.dbManager.createAsset(
+                assetAddress,
+                Number(price.toString()) / 1e18, // Convert to ETH
+                description,
+                embeddings,
+                imageUrl,
+                embeddingsUrl
+            );
+
+            this.logger.log('Asset stored in database');
+
+        } catch (error) {
+            this.logger.error('Error buying asset:', error);
+            log.status = AgentLogStatus.ERROR;
+            log.errorMessage = error instanceof Error ? error.message : 'Unknown error during purchase';
+            await this.agentLogRepository.save(log);
+            throw error;
+        }
+    }
+
     private async handleAssetCreated(event: ContractEvent, log: AgentLog): Promise<void> {
         const [owner, assetAddress, name, symbol, price, coinAddress, baseURI] = event.args;
         this.logger.log('New Asset event received:', {
@@ -141,6 +224,7 @@ export class ContractMessageManager implements ContractMessageHandler {
             
             // Get the second file's gateway URL (index 1)
             const embeddingsUrl = files[1].gateway_url;
+            const imageUrl = files[0].gateway_url; // Get the image URL
             
             // Fetch the actual embeddings
             const embeddingsResponse = await axios.get(embeddingsUrl);
@@ -182,6 +266,19 @@ export class ContractMessageManager implements ContractMessageHandler {
                         assetAddress,
                         reason: analysis.feedback
                     });
+
+                    // Execute the purchase with all necessary data
+                    await this.buyAsset(
+                        assetAddress,
+                        coinAddress,
+                        price,
+                        log,
+                        embeddings,
+                        analysis.feedback, // Use the analysis feedback as description
+                        imageUrl,
+                        embeddingsUrl
+                    );
+                    
                 } else {
                     this.logger.log('Decision: Will not buy asset', {
                         assetAddress,

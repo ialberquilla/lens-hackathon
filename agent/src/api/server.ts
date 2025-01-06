@@ -46,7 +46,8 @@ const getStatus: RequestHandler<StatusParams> = async (req, res, next) => {
             feedback: log.feedback,
             errorMessage: log.errorMessage,
             createdAt: log.createdAt,
-            updatedAt: log.updatedAt
+            updatedAt: log.updatedAt,
+            transactionMint: log.transactionMint
         });
     } catch (error) {
         console.error('Error fetching analysis status:', error);

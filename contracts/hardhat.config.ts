@@ -1,8 +1,5 @@
 import "@matterlabs/hardhat-zksync";
-import "@nomicfoundation/hardhat-chai-matchers";
 import "@nomicfoundation/hardhat-toolbox";
-import "@nomiclabs/hardhat-solhint";
-
 import { HardhatUserConfig } from "hardhat/config";
 
 const config: HardhatUserConfig = {
@@ -15,11 +12,11 @@ const config: HardhatUserConfig = {
   },
   networks: {
     lensTestnet: {
-      chainId: 37111,
+      url: "https://rpc.testnet.lens.dev",
       ethNetwork: "sepolia",
-      url: "https://api.staging.lens.zksync.dev",
-      verifyURL: "https://api-explorer-verify.staging.lens.zksync.dev/contract_verification",
       zksync: true,
+      chainId: 37111,
+      verifyURL: "https://block-explorer-verify.testnet.lens.dev/contract_verification",
     },
     hardhat: {
       zksync: true,

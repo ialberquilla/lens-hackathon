@@ -3,6 +3,7 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateCol
 export enum AgentLogStatus {
     PENDING = "PENDING",
     ANALYZED = "ANALYZED",
+    PURCHASED = "PURCHASED",
     ERROR = "ERROR"
 }
 
@@ -13,6 +14,9 @@ export class AgentLog {
 
     @Column({ type: "varchar", length: 66, name: "transaction_id" })
     transactionId!: string;
+
+    @Column({ type: "varchar", length: 66, name: "transaction_mint", nullable: true })
+    transactionMint!: string | null;
 
     @Column({ type: "varchar", length: 50, name: "agent_type" })
     agentType!: string;
