@@ -2,6 +2,7 @@ import { ContractEvent, ContractMessageHandler } from './types';
 import { DatabaseManager } from './db/DatabaseManager';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { AgentLog, AgentLogStatus } from './db/entities/AgentLog';
+import { Asset } from './db/entities/Asset';
 import { AppDataSource } from './db/data-source';
 import { Wallet, Contract, Provider } from 'zksync-ethers';
 import axios from 'axios';
@@ -155,6 +156,11 @@ export class ContractMessageManager implements ContractMessageHandler {
         imageUrl: string,
         embeddingsUrl: string
     ): Promise<void> {
+        // Start a transaction
+        const queryRunner = AppDataSource.createQueryRunner();
+        await queryRunner.connect();
+        await queryRunner.startTransaction();
+
         try {
             this.logger.log('Initiating asset purchase:', {
                 assetAddress,
@@ -180,28 +186,50 @@ export class ContractMessageManager implements ContractMessageHandler {
             this.logger.log('Asset minted successfully, tx:', mintReceipt.hash);
 
             // Update agent log with purchase status and mint transaction
+            this.logger.log('Updating agent log with PURCHASED status...');
             log.status = AgentLogStatus.PURCHASED;
             log.transactionMint = mintReceipt.hash;
-            await this.agentLogRepository.save(log);
+            const savedLog = await queryRunner.manager.save(log);
+            this.logger.log('Agent log updated:', {
+                id: savedLog.id,
+                status: savedLog.status,
+                transactionMint: savedLog.transactionMint
+            });
 
             // Store the asset in our database
-            await this.dbManager.createAsset(
-                assetAddress,
-                Number(price.toString()) / 1e18, // Convert to ETH
-                description,
-                embeddings,
-                imageUrl,
-                embeddingsUrl
-            );
+            this.logger.log('Storing asset in database...');
+            const asset = new Asset();
+            asset.contractAddress = assetAddress;
+            asset.price = Number(price.toString()) / 1e18;
+            asset.description = description;
+            asset.embeddings = embeddings;
+            asset.imageUrl = imageUrl;
+            asset.embeddingsUrl = embeddingsUrl;
+            asset.agentType = this.agentType;
 
-            this.logger.log('Asset stored in database');
+            const savedAsset = await queryRunner.manager.save(asset);
+            this.logger.log('Asset stored in database:', {
+                assetId: savedAsset.assetId,
+                contractAddress: savedAsset.contractAddress
+            });
+
+            // Commit the transaction
+            await queryRunner.commitTransaction();
+            this.logger.log('Database transaction committed successfully');
 
         } catch (error) {
             this.logger.error('Error buying asset:', error);
+            // Rollback the transaction on error
+            await queryRunner.rollbackTransaction();
+            this.logger.log('Database transaction rolled back due to error');
+            
             log.status = AgentLogStatus.ERROR;
             log.errorMessage = error instanceof Error ? error.message : 'Unknown error during purchase';
             await this.agentLogRepository.save(log);
             throw error;
+        } finally {
+            // Release the query runner
+            await queryRunner.release();
         }
     }
 
