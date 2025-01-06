@@ -194,7 +194,7 @@ export class ContractMessageManager implements ContractMessageHandler {
             try {
                 const approveTx = await erc20Contract.approve(assetAddress, price);
                 this.logger.log('Approval transaction sent:', approveTx.hash);
-                await new Promise(resolve => setTimeout(resolve, 2000));
+                await new Promise(resolve => setTimeout(resolve, 5000));
             } catch (error) {
                 this.logger.error('Error during token approval:', error);
                 throw error;
