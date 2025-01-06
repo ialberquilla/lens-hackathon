@@ -257,7 +257,7 @@ export class ContractMessageManager implements ContractMessageHandler {
                 asset.contractAddress = assetAddress;
                 asset.price = Number(price.toString()) / 1e18;
                 asset.description = description;
-                // asset.embeddings = embeddings;
+                asset.embeddings = [];
                 asset.imageUrl = imageUrl;
                 asset.embeddingsUrl = embeddingsUrl;
                 asset.agentType = this.agentType;
