@@ -146,6 +146,23 @@ export class ContractMessageManager implements ContractMessageHandler {
         }
     }
 
+    private async waitForTransaction(tx: any, maxAttempts: number = 5): Promise<any> {
+        let attempts = 0;
+        while (attempts < maxAttempts) {
+            try {
+                const receipt = await this.provider.getTransactionReceipt(tx.hash);
+                if (receipt) {
+                    return receipt;
+                }
+            } catch (error) {
+                this.logger.error(`Error getting receipt (attempt ${attempts + 1}/${maxAttempts}):`, error);
+            }
+            attempts++;
+            await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds between attempts
+        }
+        throw new Error(`Failed to get transaction receipt after ${maxAttempts} attempts`);
+    }
+
     private async buyAsset(
         assetAddress: string,
         coinAddress: string,
@@ -177,7 +194,7 @@ export class ContractMessageManager implements ContractMessageHandler {
             try {
                 const approveTx = await erc20Contract.approve(assetAddress, price);
                 this.logger.log('Approval transaction sent:', approveTx.hash);
-                const approveReceipt = await approveTx.wait();
+                const approveReceipt = await this.waitForTransaction(approveTx);
                 this.logger.log('Token spend approved, tx:', approveReceipt.hash);
             } catch (error) {
                 this.logger.error('Error during token approval:', error);
@@ -185,20 +202,12 @@ export class ContractMessageManager implements ContractMessageHandler {
             }
 
             // Then mint the asset
-            // Use tokenId 1 as it's the first mint
             this.logger.log('Minting asset...');
             try {
                 const mintTx = await assetContract.mint(this.wallet.address, 1);
                 this.logger.log('Mint transaction sent:', mintTx.hash);
                 
-                // Add timeout for waiting for transaction
-                const mintReceipt = await Promise.race([
-                    mintTx.wait(),
-                    new Promise((_, reject) => 
-                        setTimeout(() => reject(new Error('Mint transaction timeout after 60s')), 60000)
-                    )
-                ]);
-                
+                const mintReceipt = await this.waitForTransaction(mintTx);
                 this.logger.log('Asset minted successfully, tx:', mintReceipt.hash);
 
                 // Update agent log with purchase status and mint transaction
