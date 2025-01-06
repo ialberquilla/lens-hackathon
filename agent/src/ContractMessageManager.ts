@@ -9,7 +9,8 @@ import axios from 'axios';
 
 // ABI for ERC20 (GHO token) approve function
 const ERC20_ABI = [
-    "function approve(address spender, uint256 amount) public returns (bool)"
+    "function approve(address spender, uint256 amount) public returns (bool)",
+    "function allowance(address owner, address spender) public view returns (uint256)"
 ];
 
 // ABI for Asset contract mint function
