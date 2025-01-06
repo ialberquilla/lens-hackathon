@@ -194,8 +194,7 @@ export class ContractMessageManager implements ContractMessageHandler {
             try {
                 const approveTx = await erc20Contract.approve(assetAddress, price);
                 this.logger.log('Approval transaction sent:', approveTx.hash);
-                const approveReceipt = await this.waitForTransaction(approveTx);
-                this.logger.log('Token spend approved, tx:', approveReceipt.hash);
+                await new Promise(resolve => setTimeout(resolve, 2000));
             } catch (error) {
                 this.logger.error('Error during token approval:', error);
                 throw error;
@@ -207,13 +206,13 @@ export class ContractMessageManager implements ContractMessageHandler {
                 const mintTx = await assetContract.mint(this.wallet.address, 1);
                 this.logger.log('Mint transaction sent:', mintTx.hash);
                 
-                const mintReceipt = await this.waitForTransaction(mintTx);
-                this.logger.log('Asset minted successfully, tx:', mintReceipt.hash);
+                // Wait a short time for transaction to propagate
+                await new Promise(resolve => setTimeout(resolve, 2000));
 
                 // Update agent log with purchase status and mint transaction
                 this.logger.log('Updating agent log with PURCHASED status...');
                 log.status = AgentLogStatus.PURCHASED;
-                log.transactionMint = mintReceipt.hash;
+                log.transactionMint = mintTx.hash; // Use transaction hash directly
                 const savedLog = await queryRunner.manager.save(log);
                 this.logger.log('Agent log updated:', {
                     id: savedLog.id,
