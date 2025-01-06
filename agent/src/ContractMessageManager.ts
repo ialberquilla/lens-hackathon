@@ -174,48 +174,72 @@ export class ContractMessageManager implements ContractMessageHandler {
 
             // First approve the asset contract to spend tokens
             this.logger.log('Approving token spend...');
-            const approveTx = await erc20Contract.approve(assetAddress, price);
-            const approveReceipt = await approveTx.wait();
-            this.logger.log('Token spend approved, tx:', approveReceipt.hash);
+            try {
+                const approveTx = await erc20Contract.approve(assetAddress, price);
+                this.logger.log('Approval transaction sent:', approveTx.hash);
+                const approveReceipt = await approveTx.wait();
+                this.logger.log('Token spend approved, tx:', approveReceipt.hash);
+            } catch (error) {
+                this.logger.error('Error during token approval:', error);
+                throw error;
+            }
 
             // Then mint the asset
             // Use tokenId 1 as it's the first mint
             this.logger.log('Minting asset...');
-            const mintTx = await assetContract.mint(this.wallet.address, 1);
-            const mintReceipt = await mintTx.wait();
-            this.logger.log('Asset minted successfully, tx:', mintReceipt.hash);
+            try {
+                const mintTx = await assetContract.mint(this.wallet.address, 1);
+                this.logger.log('Mint transaction sent:', mintTx.hash);
+                
+                // Add timeout for waiting for transaction
+                const mintReceipt = await Promise.race([
+                    mintTx.wait(),
+                    new Promise((_, reject) => 
+                        setTimeout(() => reject(new Error('Mint transaction timeout after 60s')), 60000)
+                    )
+                ]);
+                
+                this.logger.log('Asset minted successfully, tx:', mintReceipt.hash);
 
-            // Update agent log with purchase status and mint transaction
-            this.logger.log('Updating agent log with PURCHASED status...');
-            log.status = AgentLogStatus.PURCHASED;
-            log.transactionMint = mintReceipt.hash;
-            const savedLog = await queryRunner.manager.save(log);
-            this.logger.log('Agent log updated:', {
-                id: savedLog.id,
-                status: savedLog.status,
-                transactionMint: savedLog.transactionMint
-            });
+                // Update agent log with purchase status and mint transaction
+                this.logger.log('Updating agent log with PURCHASED status...');
+                log.status = AgentLogStatus.PURCHASED;
+                log.transactionMint = mintReceipt.hash;
+                const savedLog = await queryRunner.manager.save(log);
+                this.logger.log('Agent log updated:', {
+                    id: savedLog.id,
+                    status: savedLog.status,
+                    transactionMint: savedLog.transactionMint
+                });
 
-            // Store the asset in our database
-            this.logger.log('Storing asset in database...');
-            const asset = new Asset();
-            asset.contractAddress = assetAddress;
-            asset.price = Number(price.toString()) / 1e18;
-            asset.description = description;
-            asset.embeddings = embeddings;
-            asset.imageUrl = imageUrl;
-            asset.embeddingsUrl = embeddingsUrl;
-            asset.agentType = this.agentType;
+                // Store the asset in our database
+                this.logger.log('Storing asset in database...');
+                const asset = new Asset();
+                asset.contractAddress = assetAddress;
+                asset.price = Number(price.toString()) / 1e18;
+                asset.description = description;
+                asset.embeddings = embeddings;
+                asset.imageUrl = imageUrl;
+                asset.embeddingsUrl = embeddingsUrl;
+                asset.agentType = this.agentType;
 
-            const savedAsset = await queryRunner.manager.save(asset);
-            this.logger.log('Asset stored in database:', {
-                assetId: savedAsset.assetId,
-                contractAddress: savedAsset.contractAddress
-            });
+                const savedAsset = await queryRunner.manager.save(asset);
+                this.logger.log('Asset stored in database:', {
+                    assetId: savedAsset.assetId,
+                    contractAddress: savedAsset.contractAddress
+                });
 
-            // Commit the transaction
-            await queryRunner.commitTransaction();
-            this.logger.log('Database transaction committed successfully');
+                // Commit the transaction
+                await queryRunner.commitTransaction();
+                this.logger.log('Database transaction committed successfully');
+            } catch (error) {
+                this.logger.error('Error during mint process:', {
+                    error,
+                    assetAddress,
+                    walletAddress: this.wallet.address
+                });
+                throw error;
+            }
 
         } catch (error) {
             this.logger.error('Error buying asset:', error);
