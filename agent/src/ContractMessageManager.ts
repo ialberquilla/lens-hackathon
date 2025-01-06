@@ -253,20 +253,20 @@ export class ContractMessageManager implements ContractMessageHandler {
 
                 // Store the asset in our database
                 this.logger.log('Storing asset in database...');
-                const asset = new Asset();
-                asset.contractAddress = assetAddress;
-                asset.price = Number(price.toString()) / 1e18;
-                asset.description = description;
-                asset.embeddings = [];
-                asset.imageUrl = imageUrl;
-                asset.embeddingsUrl = embeddingsUrl;
-                asset.agentType = this.agentType;
+                // const asset = new Asset();
+                // asset.contractAddress = assetAddress;
+                // asset.price = Number(price.toString()) / 1e18;
+                // asset.description = description;
+                // asset.embeddings = [];
+                // asset.imageUrl = imageUrl;
+                // asset.embeddingsUrl = embeddingsUrl;
+                // asset.agentType = this.agentType;
 
-                const savedAsset = await queryRunner.manager.save(asset);
-                this.logger.log('Asset stored in database:', {
-                    assetId: savedAsset.assetId,
-                    contractAddress: savedAsset.contractAddress
-                });
+                // const savedAsset = await queryRunner.manager.save(asset);
+                // this.logger.log('Asset stored in database:', {
+                //     assetId: savedAsset.assetId,
+                //     contractAddress: savedAsset.contractAddress
+                // });
 
                 // Commit the transaction
                 await queryRunner.commitTransaction();
