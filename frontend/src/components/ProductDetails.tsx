@@ -2,8 +2,9 @@
 
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Brain, Star, ChevronDown, Link as LinkIcon, FileJson } from 'lucide-react';
+import { Brain, Star, ChevronDown, Link as LinkIcon, FileJson, Store } from 'lucide-react';
 import Image from 'next/image';
+import Link from 'next/link';
 
 interface ProductDetailsProps {
   imageUrl: string;
@@ -250,11 +251,19 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({
                             <agent.icon className="w-6 h-6" />
                           </div>
                           <div>
-                            <CardTitle className="text-lg">{agent.name}</CardTitle>
+                            <h3 className="font-semibold">{agent.name}</h3>
                             <p className="text-sm text-gray-500">{agent.description}</p>
                           </div>
                         </div>
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-4">
+                          <Link
+                            href={`/marketplace/${agent.type}`}
+                            className="flex items-center space-x-2 text-sm text-blue-600 hover:text-blue-700"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Store className="w-4 h-4" />
+                            <span>View Marketplace</span>
+                          </Link>
                           {!agentStatus[agent.type] || agentStatus[agent.type]?.status === 'PENDING' ? (
                             <div className="flex items-center space-x-2 px-3 py-1 rounded-full text-sm bg-blue-50 text-blue-600 border border-blue-600">
                               <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-current"></div>

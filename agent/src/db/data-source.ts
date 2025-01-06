@@ -6,6 +6,7 @@ import { CreateAgentLogsTable1709747002000 } from "./migrations/1709747002000-Cr
 import "reflect-metadata";
 import { AgentLog } from "./entities/AgentLog";
 import dotenv from "dotenv";
+import { AddTransactionMintField1709747002001 } from "./migrations/1709747002001-AddTransactionMintField";
 
 dotenv.config();
 
@@ -18,17 +19,18 @@ export const AppDataSource = new DataSource({
     database: process.env.DB_NAME || "lens_hackathon",
     synchronize: false,
     logging: true,
-    ssl: true,
-    extra: {
-        ssl: {
-            rejectUnauthorized: false
-        }
-    },
+    // ssl: process.env.SSL_MODE === "true",
+    // extra: {
+    //     ssl: {
+    //         rejectUnauthorized: false
+    //     }
+    // },
     entities: [Asset, AgentLog],
     migrations: [
         CreateAssetTable1709747000000,
         AddArrayToVectorFunction1709747001000,
-        CreateAgentLogsTable1709747002000
+        CreateAgentLogsTable1709747002000,
+        AddTransactionMintField1709747002001
     ],
     subscribers: [],
 }); 

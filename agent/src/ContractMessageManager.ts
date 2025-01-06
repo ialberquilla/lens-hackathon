@@ -253,20 +253,24 @@ export class ContractMessageManager implements ContractMessageHandler {
 
                 // Store the asset in our database
                 this.logger.log('Storing asset in database...');
-                // const asset = new Asset();
-                // asset.contractAddress = assetAddress;
-                // asset.price = Number(price.toString()) / 1e18;
-                // asset.description = description;
-                // asset.embeddings = [];
-                // asset.imageUrl = imageUrl;
-                // asset.embeddingsUrl = embeddingsUrl;
-                // asset.agentType = this.agentType;
+                const embeddingsArray = Array.isArray(embeddings) ? embeddings : 
+                    (embeddings as string).substring(1, (embeddings as string).length - 1).split(',').map(Number);
 
-                // const savedAsset = await queryRunner.manager.save(asset);
-                // this.logger.log('Asset stored in database:', {
-                //     assetId: savedAsset.assetId,
-                //     contractAddress: savedAsset.contractAddress
-                // });
+                const asset = queryRunner.manager.getRepository(Asset).create({
+                    contractAddress: assetAddress,
+                    price: Number(price.toString()) / 1e18,
+                    description: description,
+                    embeddings: embeddingsArray,
+                    imageUrl: imageUrl,
+                    embeddingsUrl: embeddingsUrl,
+                    agentType: this.agentType
+                });
+
+                const savedAsset = await queryRunner.manager.save(Asset, asset);
+                this.logger.log('Asset stored in database:', {
+                    assetId: savedAsset.assetId,
+                    contractAddress: savedAsset.contractAddress
+                });
 
                 // Commit the transaction
                 await queryRunner.commitTransaction();
@@ -365,7 +369,7 @@ export class ContractMessageManager implements ContractMessageHandler {
                         price,
                         log,
                         embeddings,
-                        analysis.feedback, // Use the analysis feedback as description
+                        analysis.feedback,
                         imageUrl,
                         embeddingsUrl
                     );

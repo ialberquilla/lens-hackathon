@@ -2,6 +2,8 @@ import express, { RequestHandler } from 'express';
 import cors from 'cors';
 import { AppDataSource } from '../db/data-source';
 import { AgentLog } from '../db/entities/AgentLog';
+import { Asset } from '../db/entities/Asset';
+import { MoreThan } from 'typeorm';
 
 const app = express();
 const port = process.env.API_PORT || 4000;
@@ -12,6 +14,10 @@ app.use(express.json());
 
 interface StatusParams {
     transactionId: string;
+}
+
+interface AssetParams {
+    agentType: string;
 }
 
 const getStatus: RequestHandler<StatusParams> = async (req, res, next) => {
@@ -58,8 +64,15 @@ const getStatus: RequestHandler<StatusParams> = async (req, res, next) => {
     }
 };
 
+const getAssets: RequestHandler<AssetParams> = async (req, res, next) => {
+    const { agentType } = req.params;
+    const assets = await AppDataSource.getRepository(Asset).find({ where: { agentType, assetId: MoreThan(6) } });
+    res.json(assets);
+};
+
 // Register the route handler
 app.get('/api/status/:transactionId', getStatus);
+app.get('/api/assets/:agentType', getAssets);
 
 export async function startServer() {
     try {
