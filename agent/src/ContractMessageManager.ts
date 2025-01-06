@@ -163,6 +163,32 @@ export class ContractMessageManager implements ContractMessageHandler {
         throw new Error(`Failed to get transaction receipt after ${maxAttempts} attempts`);
     }
 
+    private async waitForApproval(erc20Contract: Contract, spender: string, amount: bigint, maxAttempts: number = 10): Promise<void> {
+        let attempts = 0;
+        while (attempts < maxAttempts) {
+            try {
+                const allowance = await erc20Contract.allowance(this.wallet.address, spender);
+                if (allowance >= amount) {
+                    this.logger.log('Approval confirmed:', {
+                        allowance: allowance.toString(),
+                        required: amount.toString()
+                    });
+                    return;
+                }
+                this.logger.log('Waiting for approval confirmation...', {
+                    attempt: attempts + 1,
+                    allowance: allowance.toString(),
+                    required: amount.toString()
+                });
+            } catch (error) {
+                this.logger.error(`Error checking allowance (attempt ${attempts + 1}/${maxAttempts}):`, error);
+            }
+            attempts++;
+            await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3 seconds between attempts
+        }
+        throw new Error(`Failed to confirm approval after ${maxAttempts} attempts`);
+    }
+
     private async buyAsset(
         assetAddress: string,
         coinAddress: string,
@@ -194,7 +220,11 @@ export class ContractMessageManager implements ContractMessageHandler {
             try {
                 const approveTx = await erc20Contract.approve(assetAddress, price);
                 this.logger.log('Approval transaction sent:', approveTx.hash);
-                await new Promise(resolve => setTimeout(resolve, 5000));
+                
+                // Wait for approval to be confirmed
+                await this.waitForApproval(erc20Contract, assetAddress, price);
+                this.logger.log('Token spend approved and confirmed');
+                
             } catch (error) {
                 this.logger.error('Error during token approval:', error);
                 throw error;
