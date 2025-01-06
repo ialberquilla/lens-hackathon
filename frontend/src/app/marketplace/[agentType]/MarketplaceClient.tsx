@@ -26,10 +26,20 @@ export default function MarketplaceClient({ agentType }: MarketplaceClientProps)
   useEffect(() => {
     const fetchAssets = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_AGENT_API_URL || 'http://localhost:4000';
+
+        let apiUrl = '';
+
+        if(agentType === 'cartoon') {
+          apiUrl = process.env.NEXT_PUBLIC_AGENT_CARTON_API_URL || 'http://localhost:4000';
+        } else {
+          apiUrl = process.env.NEXT_PUBLIC_AGENT_NATURE_API_URL || 'http://localhost:4000';
+        }
         const response = await fetch(`${apiUrl}/api/assets/${agentType}`);
+        
         if (!response.ok) throw new Error('Failed to fetch assets');
         const data = await response.json();
+
+        console.log(data);
         setAssets(data);
       } catch (error) {
         console.error('Error fetching assets:', error);
