@@ -19,12 +19,12 @@ export const AppDataSource = new DataSource({
     database: process.env.DB_NAME || "lens_hackathon",
     synchronize: false,
     logging: true,
-    // ssl: process.env.SSL_MODE === "true",
-    // extra: {
-    //     ssl: {
-    //         rejectUnauthorized: false
-    //     }
-    // },
+    ssl: true,
+    extra: {
+        ssl: {
+            rejectUnauthorized: false
+        }
+    },
     entities: [Asset, AgentLog],
     migrations: [
         CreateAssetTable1709747000000,
